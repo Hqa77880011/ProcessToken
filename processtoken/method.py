@@ -28,14 +28,14 @@ class Model(nn.Module):
                 while end<len(events) and bool((events[end,3]==events[cursor,3])&(events[end,4]==events[cursor,4])):end+=1
                 group=events[cursor:end];ids=group[:,0].long();stage=group[:,4].long();recipe=group[:,5].long();observed=group[:,2]>0
                 supported=(history[None]&(self.graph[:,ids].T|F.one_hot(ids,len(history)).bool())).any(-1)
-                if self.c['variant']=='random_mask':supported=torch.ones_like(supported)
+                if self.c['variant'] in {'baseline','random_mask'}:supported=torch.ones_like(supported)
                 mask=(torch.rand(len(group),device=x.device)<self.c.get('mask_rate',.2))&supported&observed if self.training else torch.zeros_like(observed)
                 values=torch.stack([group[:,1]*(~mask),group[:,2]*(~mask),mask.float()],-1)
                 delta=(group[0,3]-previous_time).clamp_min(0);token=(self.variable(ids)+self.stage(stage)+self.recipe(recipe)+self.value(values)).mean(0)
                 if bool(visible[cursor]):
                     retain=(1-self.key(token).sigmoid())*torch.exp(-F.softplus(self.decay(token))*delta)
                     state=retain*state+self.key(token).sigmoid()*self.jump(token).tanh()
-                    if int(stage[0])!=previous_stage and self.c['variant']!='no_stage_memory':
+                    if int(stage[0])!=previous_stage and self.c['variant'] not in {'baseline','no_stage_memory'}:
                         gate=self.memory(torch.cat([state,memory,self.stage(stage[0])])).sigmoid();memory=gate*memory+(1-gate)*state
                     reconstruction[cursor:end]=self.reconstruct(state);masked[cursor:end]=mask;history[ids[observed]]=True
                 previous_time=group[0,3];previous_stage=int(stage[0]);cursor=end
