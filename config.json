@@ -1,0 +1,10 @@
+{
+  "width": 32,
+  "variables": 6,
+  "stages": 8,
+  "recipes": 4,
+  "tools": 4,
+  "decision_stage": 4,
+  "mask_rate": 0.2,
+  "stage": "finetune"
+}
