@@ -63,3 +63,12 @@ Classification reports accuracy, balanced accuracy, macro-F1, NLL, confidence EC
 Parameter counts and forward timing describe the executing process. Use batch size one and a declared device configuration for device latency comparisons. Physical energy and scores from external task evaluators require measured inputs; they are not inferred from parameter counts. All prediction arrays remain available for task-specific evaluation.
 
 The implementation uses the explicit core operations described above with configurable compact networks. Numeric conventions and application-specific information are stated with the method and data schema. The parameter file contains the current defaults.
+
+## Selected reproduction setting
+
+Use six variable IDs, eight stages, four recipes/tools, a width-32 state scan and the declared source graph. Pretraining is masked reconstruction only: it never reads class/tool labels, returns a differentiable zero if no supported mask exists, and uses a fixed validation mask. Fine-tuning restores supervised and separation losses. Initialize the second stage from the first checkpoint; keep lot/tool/time partitions fixed.
+
+```bash
+python -m processtoken.cli train --input data/prepared --output runs/pretrain --config configs/pretrain.json --epochs 20
+python -m processtoken.cli train --input data/prepared --output runs/full --config config.json --init runs/pretrain/model.pt --epochs 50
+```

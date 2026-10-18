@@ -29,7 +29,11 @@ class Model(nn.Module):
                 group=events[cursor:end];ids=group[:,0].long();stage=group[:,4].long();recipe=group[:,5].long();observed=group[:,2]>0
                 supported=(history[None]&(self.graph[:,ids].T|F.one_hot(ids,len(history)).bool())).any(-1)
                 if self.c['variant'] in {'baseline','random_mask'}:supported=torch.ones_like(supported)
-                mask=(torch.rand(len(group),device=x.device)<self.c.get('mask_rate',.2))&supported&observed if self.training else torch.zeros_like(observed)
+                rate=self.c.get('mask_rate',.2)
+                if self.training:draw=torch.rand(len(group),device=x.device)<rate
+                elif self.c.get('stage')=='pretrain' and rate>0:draw=torch.arange(cursor,end,device=x.device)%max(1,round(1/rate))==0
+                else:draw=torch.zeros_like(observed)
+                mask=draw&supported&observed
                 values=torch.stack([group[:,1]*(~mask),group[:,2]*(~mask),mask.float()],-1)
                 delta=(group[0,3]-previous_time).clamp_min(0);token=(self.variable(ids)+self.stage(stage)+self.recipe(recipe)+self.value(values)).mean(0)
                 if bool(visible[cursor]):
@@ -43,9 +47,11 @@ class Model(nn.Module):
         process=torch.stack(all_process);tool=torch.stack(all_tool);logits=self.head(process)
         return {'probability':logits.softmax(-1),'logits':logits,'process':process,'tool_latent':tool,'adversary':self.tool_head(Reverse.apply(process)),'tool_logits':self.tool_head(tool),'reconstruction':torch.stack(all_reconstruction),'masked':torch.stack(all_mask)}
     def objective(self,b,p):
-        loss=F.cross_entropy(p['logits'],b['y'].long());mask=p['masked']
-        if mask.any():
-            target=((b['x'][...,1].float().clamp(-3,3)+3)/6*15).long();pretext=F.cross_entropy(p['reconstruction'][mask],target[mask]);loss=pretext if self.c.get('stage')=='pretrain' else loss+.1*pretext
+        mask=p['masked']
+        target=((b['x'][...,1].float().clamp(-3,3)+3)/6*15).long()
+        pretext=F.cross_entropy(p['reconstruction'][mask],target[mask]) if mask.any() else p['process'].sum()*0.
+        if self.c.get('stage')=='pretrain':return pretext
+        loss=F.cross_entropy(p['logits'],b['y'].long())+.1*pretext
         if self.c['variant'] not in {'baseline','no_separation'}:
             a=p['process'];z=p['tool_latent'];a=(a-a.mean(0))/a.std(0,unbiased=False).clamp_min(1e-6);z=(z-z.mean(0))/z.std(0,unbiased=False).clamp_min(1e-6)
             loss=loss+.1*(F.cross_entropy(p['adversary'],b['tool'].long())+F.cross_entropy(p['tool_logits'],b['tool'].long()))+.01*(a.T@z/len(a)).square().mean()
