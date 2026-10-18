@@ -80,7 +80,7 @@ def main():
     elif args.command == "prepare":
         data = read(args.input)
         n = len(data["x"])
-        if "y" not in data or len(data["y"]) != n:
+        if config.get("stage")!="pretrain" and ("y" not in data or len(data["y"]) != n):
             raise ValueError("x and y must have matching sample counts")
         groups = data.get("group", np.arange(n))
         if "split" in data:
@@ -106,7 +106,10 @@ def main():
         data = read(Path(args.input) / "train.npz")
         validation = read(Path(args.input) / "validation.npz")
         config.setdefault("input_shape", list(data["x"].shape[1:]))
-        config.setdefault("classes", int(np.max(data.get("state", data["y"]))) + 1 if data["y"].ndim == 1 and data["y"].dtype.kind in "iu" else 2)
+        if config.get("stage")=="pretrain":
+            config.setdefault("classes",3)
+        else:
+            config.setdefault("classes", int(np.max(data.get("state", data["y"]))) + 1 if data["y"].ndim == 1 and data["y"].dtype.kind in "iu" else 2)
         network = method.Model(config).to(args.device)
         if args.init:
             initial = torch.load(args.init, map_location=args.device, weights_only=True)

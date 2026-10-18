@@ -72,3 +72,5 @@ Use six variable IDs, eight stages, four recipes/tools, a width-32 state scan an
 python -m processtoken.cli train --input data/prepared --output runs/pretrain --config configs/pretrain.json --epochs 20
 python -m processtoken.cli train --input data/prepared --output runs/full --config config.json --init runs/pretrain/model.pt --epochs 50
 ```
+
+Unlabeled pretraining archives may omit y and tool. Prepare them with --config configs/pretrain.json; the class-head size is fixed in that configuration and is not inferred from labels. Use a separately labeled prepared archive for fine-tuning.

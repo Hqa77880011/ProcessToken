@@ -6,5 +6,6 @@
   "tools": 4,
   "decision_stage": 4,
   "mask_rate": 0.2,
-  "stage": "pretrain"
+  "stage": "pretrain",
+  "classes": 3
 }
